@@ -18,13 +18,28 @@ def chat():
         # Get past conversations
         doc_ref = db.collection('chat_records').document(sender)
         doc = doc_ref.get()
-        past_conversations = doc.to_dict().get('conversations', []) if doc.exists else []
+        conversation_sessions = doc.to_dict().get('conversations', []) if doc.exists else []
+
+        # Prepare payload for the generate_answer function
+        payload = {
+            "inputs": f"You are TaxIQ, a polite and helpful assistant specializing in tax-related queries. \n\n User: {question} \nChatbot:",
+            "parameters": {
+                "max_new_tokens": 300
+            }
+        }
+
+        print(f"Payload: {payload}")
+
+        print(payload['inputs'])
         
-        answer = generate_answer(question, past_conversations)
-        
-        # Store new conversation
-        create({'role': 'user', 'content': question}, sender)
-        create({'role': 'assistant', 'content': answer}, sender)
+        answer = generate_answer(payload, conversation_sessions)
+
+        new_conversation = [
+            {"from": "human", "value": question},
+            {"from": "gpt", "value": answer}
+        ]
+
+        store_conversation(new_conversation, sender)
         
         response = MessagingResponse()
         response.message(answer)
@@ -50,16 +65,21 @@ def read(document_id):
         return jsonify({'error': 'Document not found'}), 404
 
 @app.route('/create', methods=['POST'])
-def create(data, phone):
+def store_conversation(conversation, phone):
+   """
+    Stores a new conversation session in the Firestore database.
+    """
    doc_ref = db.collection('chat_records').document(phone)
    doc = doc_ref.get()
 
+   new_entry = {"conversations": conversation}
+
    if doc.exists:
        doc_ref.update({
-           'conversations': firestore.ArrayUnion([data])
+           'conversation_sessions': firestore.ArrayUnion([new_entry])
        })
    else:
-       doc_ref.set({'conversations': [data]})
+       doc_ref.set({'conversation_sessions': [new_entry]})
        
    return jsonify({'message': 'Document updated successfully', 'document_id': doc_ref.id}), 201
 
@@ -75,7 +95,7 @@ def read_all():
 
 if __name__ == "__main__":
     # Check for required environment variables at startup
-    if not os.getenv("OPENAI_API_KEY"):
+    if not os.getenv("HUGGINGFACE_API_KEY"):
         print("Warning: OPENAI_API_KEY environment variable is not set")
     
     app.run(host='0.0.0.0', debug=True, port=5000)
