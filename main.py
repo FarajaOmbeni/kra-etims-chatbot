@@ -22,17 +22,18 @@ def chat():
 
         # Prepare payload for the generate_answer function
         payload = {
-            "inputs": f"You are TaxIQ, a polite and helpful assistant specializing in tax-related queries. \n\n User: {question} \nChatbot:",
+            "inputs": f"User: {question} \nChatbot:",
             "parameters": {
                 "max_new_tokens": 300
             }
         }
 
         print(f"Payload: {payload}")
-
-        print(payload['inputs'])
         
         answer = generate_answer(payload, conversation_sessions)
+        
+        response = MessagingResponse()
+        response.message(answer)
 
         new_conversation = [
             {"from": "human", "value": question},
@@ -40,9 +41,7 @@ def chat():
         ]
 
         store_conversation(new_conversation, sender)
-        
-        response = MessagingResponse()
-        response.message(answer)
+
         return str(response)
     except Exception as e:
         print(f"Error: {str(e)}")
@@ -66,9 +65,6 @@ def read(document_id):
 
 @app.route('/create', methods=['POST'])
 def store_conversation(conversation, phone):
-   """
-    Stores a new conversation session in the Firestore database.
-    """
    doc_ref = db.collection('chat_records').document(phone)
    doc = doc_ref.get()
 

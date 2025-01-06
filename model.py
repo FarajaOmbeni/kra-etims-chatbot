@@ -14,15 +14,29 @@ headers = {
     'Content-Type': 'application/json'
 }
 
+conversation_sessions = []
+
 #Function to ask the model
 def generate_answer(payload, past_conversation=None, max_tokens=300):
+    global conversation_sessions
     try:
         # Validate API key
         if not api_key:
-            raise ValueError("API key is not set in environment variables")
+            raise ValueError("API key is not set in environment variables")  
+           
+        new_session = {
+            "conversations": [
+                {
+                    "from": "human",
+                    "value": payload['inputs']
+                }
+            ]
+        }       
 
-        # Print payload for debugging
-        print("Payload sent to API:", payload)
+        if past_conversation:
+            for session in past_conversation:
+                if session not in conversation_sessions:
+                    conversation_sessions.extend(session)
 
         # Make the API request
         response = requests.post(API_URL, headers=headers, json=payload)
@@ -38,7 +52,15 @@ def generate_answer(payload, past_conversation=None, max_tokens=300):
             generated_text = response_data[0]['generated_text']
             if "Chatbot:" in generated_text:
                 bot_response = generated_text.split("Chatbot:")[1].strip()
+                new_session["conversations"].append(
+                    {
+                        "from": "gpt",
+                        "value": bot_response
+                    }
+                )
+                conversation_sessions.append(new_session)
                 print(f"Bot response: {bot_response}")
+                print(f"Conversations: {conversation_sessions}")
                 return bot_response
             else:
                 return "I could not generate a response. Please try again."
