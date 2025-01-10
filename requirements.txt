@@ -2,4 +2,5 @@ flask
 openai
 twilio
 python-dotenv
-psycopg2
+firebase-admin
+requests

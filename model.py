@@ -39,7 +39,7 @@ def generate_answer(payload, past_conversation=None, max_tokens=300):
                     conversation_sessions.extend(session)
 
         # Make the API request
-        response = requests.post(API_URL, headers=headers, json=payload)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=15)
 
         # Check if response is valid JSON
         try:
@@ -67,7 +67,9 @@ def generate_answer(payload, past_conversation=None, max_tokens=300):
         else:
             # Handle API error response
             return f"Error: Request failed with status {response.status_code}: {response.text}"
-
+        
+    except requests.Timeout:
+        return "I'm sorry, but I'm taking too long to respond. Please try again."
     except Exception as e:
         # Catch any unexpected errors
         print(f"Error in generate_answer: {e}")
