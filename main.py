@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, current_app
 import os
 from twilio.twiml.messaging_response import MessagingResponse
-from model import generate_answer
+from model import generate_answer, system_prompt
 from threading import Thread
 
 import firebase_admin
@@ -26,9 +26,10 @@ def chat():
 
         # Prepare payload for the generate_answer function
         payload = {
-            "inputs": f"User: {question} \nChatbot:",
+            "inputs": f"System Prompt: {system_prompt} \n User: {question} \nChatbot:",
             "parameters": {
-                "max_new_tokens": 300
+                "max_new_tokens": 1000,
+                "stop": ["User:", "Chatbot:"]
             }
         }
 
