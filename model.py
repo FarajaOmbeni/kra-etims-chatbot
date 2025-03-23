@@ -1,86 +1,70 @@
 import requests
 from dotenv import load_dotenv
+from openai import OpenAI
+import re
 import os
 
 # Load environment variables from .env file
 load_dotenv()
 
-API_URL = os.getenv("API_URL")
-api_key = os.getenv("HUGGINGFACE_API_KEY")
+# API_URL = os.getenv("API_URL")
+api_key = os.getenv("OPENAI_API_KEY")
 
-headers = {
-    'Accept': 'application/json',
-    'Authorization': f'Bearer {api_key}',
-    'Content-Type': 'application/json'
-}
+# headers = {
+#     'Accept': 'application/json',
+#     'Authorization': f'Bearer {api_key}',
+#     'Content-Type': 'application/json'
+# }
 
-conversation_sessions = []
+client = OpenAI(api_key=api_key)
 
-system_prompt = (
-    "You are an expert assistant tasked with answering questions clearly, thoroughly, and accurately. Provide complete and well-structured responses based only on verified information and avoid speculation or fabricated details. If unsure of the answer, respond with 'I don't know' or provide suggestions on where to find reliable information. Always prioritize clarity and correctness in your explanations."
-    "When someone greets you, answer politely and ask how you can assist them"
-    "You are a helpful assistant named TaxIQ. "
-    "If you don't know the answer, admit it rather than guessing. "
-    "Always respond as 'Chatbot:' and do not generate 'User:' responses."
-)
+system_prompt = '''
+You are a specialized tax assistant designed to answer questions strictly related to tax, the Kenya Revenue Authority (KRA), and the Electronic Tax Invoice Management System (eTIMS) in Kenya. Your responses should be clear, accurate, and up-to-date, relying on official sources where possible.
+Scope of Responses:
+• Provide accurate information on tax policies, compliance requirements, and tax filing procedures in Kenya.
+• Explain KRA services, including PIN registration, returns filing, tax compliance certificates, and penalties.
+• Offer guidance on using eTIMS, including registration, invoicing, and troubleshooting common issues.
+• Reference Kenya’s tax laws, regulations, and KRA guidelines where applicable.
+• Always verify the latest information online before responding to ensure accuracy.
+Strict Limitations:
+• Do NOT answer any questions unrelated to tax, KRA, or eTIMS.
+• Do NOT provide legal or financial advice—only factual and procedural information.
+• Do NOT speculate; rely on credible and official sources such as the KRA website or government publications.
+Web Search Requirement:
+• For each response, perform an online search to verify that the information is current and correct.
+• Prioritize official sources such as the KRA website (kra.go.ke), government portals, or reputable financial institutions in Kenya.
+Response Formatting:
+• Keep responses concise yet comprehensive.
+• Use bullet points or step-by-step instructions where necessary.
+• Include official references or links for further reading.
+• If information is unavailable or unclear, state explicitly that the user should consult KRA directly.
+'''
 
+#Function to clean the text
+def clean_text(text):
+    text = re.sub(r'http\S+|www.\S+', '', text)
+    text = re.sub(r'^a-zA-Z0-9\s', '', text)
+
+    return text
 
 #Function to ask the model
-def generate_answer(payload, past_conversation=None, max_tokens=300):
-    global conversation_sessions
-    try:
-        # Validate API key
-        if not api_key:
-            raise ValueError("API key is not set in environment variables")  
-           
-        new_session = {
-            "conversations": [
-                {
-                    "from": "human",
-                    "value": payload['inputs']
-                }
-            ]
-        }       
+def generate_answer(payload, max_tokens=100):
+    completion = client.chat.completions.create(
+        model='gpt-4o-mini-search-preview',
+        messages=[
+            {
+                'role': 'assistant',
+                'content': system_prompt
+            },
+            {
+                'role': 'user',
+                'content': payload
+            }
+        ],
+        max_tokens=max_tokens
+    )
 
-        if past_conversation:
-            for session in past_conversation:
-                if session not in conversation_sessions:
-                    conversation_sessions.extend(session)
+    unformatted_response = completion.choices[0].message.content
+    response = clean_text(unformatted_response)
 
-        # Make the API request
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=15)
-
-        # Check if response is valid JSON
-        try:
-            response_data = response.json()
-        except ValueError:
-            return f"Error: Invalid JSON response: {response.text}"
-
-        # Handle success
-        if response.status_code == 200:
-            response_data = response.json()  # Make sure to parse the JSON response
-            generated_text = response_data[0]['generated_text']
-            if generated_text:
-                # Remove "User:" from the generated text
-                cleaned_text = generated_text.replace("User:", "").strip()
-
-                # Extract the assistant's response
-                lines = cleaned_text.split("\n")
-                for line in lines:
-                    if line.startswith("Chatbot:"):
-                        bot_response = line.replace("Chatbot:", "").strip()
-                        return bot_response
-                else:
-                    return "I could not generate a response. Please try again."
-        else:
-            # Handle API error response
-            return f"Error: Request failed with status {response.status_code}: {response.text}"
-
-        
-    except requests.Timeout:
-        return "I'm sorry, but I'm taking too long to respond. Please try again."
-    except Exception as e:
-        # Catch any unexpected errors
-        print(f"Error in generate_answer: {e}")
-        return f"Unexpected error: {e}"
-
+    return response
