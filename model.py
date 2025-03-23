@@ -18,6 +18,7 @@ User Interaction:
 At the beginning of the conversation, greet the user warmly and ask for their name to personalize the interaction.
 Example: "Hello! I'm your KRA and tax assistant. Before we begin, may I have your name to make our conversation more interactive?"
 Address the user by name throughout the conversation to enhance engagement.
+If the user asks you their name, look into the conversation history and tell them. Example: Your name is [name]
 Scope of Responses:
 Provide accurate information on tax policies, compliance requirements, and tax filing procedures in Kenya.
 Explain KRA services, including PIN registration, returns filing, tax compliance certificates, and penalties.
@@ -47,8 +48,20 @@ def clean_text(text):
 
     return text
 
+def check_relevancy(question):
+    tax_keywords = ["tax", "kra", "etims", "vat", "income tax", "pin", "compliance", "itax", "return", "filing", "penalty", "invoice", "kenya revenue", "pin", "tax", "regulations", "revenue", "turnover tax", "income tax","VAT","file returns","PIN", "tot","eTIMS","invoice","refund","exemption","amend","deadline", "payment",
+    "deduction", "certificate","business","income","expenses","audit","registration","update","penalty","submission","report","claims","supporting documents","taxpayer","obligation", "amnesty", "hello", "hi", "hey", "habari"]
+
+    if any(keyword in question.lower() for keyword in tax_keywords):
+        return True
+
 #Function to ask the model
 def generate_answer(payload, sender_id, max_tokens=100):
+    is_relevant = check_relevancy(payload)
+
+    if not is_relevant:
+        return "I'm sorry, I can only answer questions related to taxes, KRA, and eTIMS in Kenya. Please ask a tax-related question."
+    
     if sender_id not in chat_history:
         chat_history[sender_id] = [
             {
@@ -68,7 +81,8 @@ def generate_answer(payload, sender_id, max_tokens=100):
     completion = client.chat.completions.create(
         model='gpt-4o-mini-search-preview',
         messages=chat_history[sender_id],
-        max_tokens=max_tokens
+        max_tokens=max_tokens,
+        temperature=0.1,
     )
 
     response = completion.choices[0].message.content
