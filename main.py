@@ -14,9 +14,9 @@ def chat():
         question = request.values.get("Body", "").lower()
         sender = request.values.get('From', '').replace('whatsapp:', '')
 
-        print(question)
+        print(f"Message from {sender}: {question}")
 
-        answer = generate_answer(question)
+        answer = generate_answer(question, sender)
         
         response = MessagingResponse()
         response.message(answer)
