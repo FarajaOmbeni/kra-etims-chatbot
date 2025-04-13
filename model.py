@@ -1,16 +1,16 @@
 import requests
 from dotenv import load_dotenv
-from openai import OpenAI
 import re
 import os
+from google import genai
+from google.genai import types
 
 # Load environment variables from .env file
 load_dotenv()
 
 # API_URL = os.getenv("API_URL")
-api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key)
-
+api_key = os.getenv("GOOGLE_API_KEY")
+client = genai.Client(api_key=api_key)
 
 system_prompt = '''
 You are a specialized tax assistant designed to answer questions strictly related to tax, the Kenya Revenue Authority (KRA), and the Electronic Tax Invoice Management System (eTIMS) in Kenya. Your responses should be clear, accurate, and up-to-date, relying on official sources where possible.
@@ -50,13 +50,13 @@ def clean_text(text):
 
 def check_relevancy(question):
     tax_keywords = ["tax", "kra", "etims", "vat", "income tax", "pin", "compliance", "itax", "return", "filing", "penalty", "invoice", "kenya revenue", "pin", "tax", "regulations", "revenue", "turnover tax", "income tax","VAT","file returns","PIN", "tot","eTIMS","invoice","refund","exemption","amend","deadline", "payment",
-    "deduction", "certificate","business","income","expenses","audit","registration","update","penalty","submission","report","claims","supporting documents","taxpayer","obligation", "amnesty", "hello", "hi", "hey", "habari"]
+    "deduction", "certificate","business","income","expenses","audit","registration","update","penalty","submission","report","claims","supporting documents","taxpayer","obligation", "amnesty", "hello", "hi", "hey", "habari", "rate", "day", "file"]
 
     if any(keyword in question.lower() for keyword in tax_keywords):
         return True
 
 #Function to ask the model
-def generate_answer(payload, sender_id, max_tokens=100):
+def generate_answer(payload, sender_id, max_tokens=300):
     is_relevant = check_relevancy(payload)
 
     if not is_relevant:
@@ -77,16 +77,30 @@ def generate_answer(payload, sender_id, max_tokens=100):
 
     if len(chat_history[sender_id]) > 11:
         chat_history[sender_id] = [chat_history[sender_id][0] + chat_history[sender_id][-10:]]
+    
+    tools = {
+        'web_search': []
+    }
 
-    completion = client.chat.completions.create(
-        model='gpt-4o-mini-search-preview',
-        messages=chat_history[sender_id],
-        max_tokens=max_tokens,
-        temperature=0.1,
+    response = client.models.generate_content(
+        model="gemini-2.0-flash", 
+        contents=payload,
+        config=types.GenerateContentConfig(
+            max_output_tokens=max_tokens,
+            temperature=0.1,
+            tools=[types.Tool(
+                google_search=types.GoogleSearchRetrieval
+            )]
+        )
     )
 
-    response = completion.choices[0].message.content
-    clean_response = clean_text(response)
+    # response = completion.choices[0].message.content
+    response = response.text
+    
+    if response:
+        clean_response = clean_text(response)
+    else:
+        clean_response = "Sorry, I couldn't generate a response at this time."
 
     chat_history[sender_id].append({
         'role': 'assistant',
