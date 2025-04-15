@@ -2,6 +2,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from flask import request, jsonify
 from datetime import datetime
+import os
+import json
 
 # Attempt to load Firebase config from environment variable
 firebase_config = os.environ.get("FIREBASE_CONFIG")
