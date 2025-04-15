@@ -44,7 +44,7 @@ def chat():
 
 if __name__ == "__main__":
     # Check for required environment variables at startup
-    if not os.getenv("HUGGINGFACE_API_KEY"):
+    if not os.getenv("GOOGLE_API_KEY"):
         print("Warning: OPENAI_API_KEY environment variable is not set")
     
     app.run(host='0.0.0.0', debug=True, port=5000)

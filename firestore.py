@@ -3,7 +3,20 @@ from firebase_admin import credentials, firestore
 from flask import request, jsonify
 from datetime import datetime
 
-cred = credentials.Certificate('./firestore_db.json')
+# Attempt to load Firebase config from environment variable
+firebase_config = os.environ.get("FIREBASE_CONFIG")
+if firebase_config:
+    try:
+        cred_dict = json.loads(firebase_config)
+        cred = credentials.Certificate(cred_dict)
+    except Exception as e:
+        print(f"Error parsing FIREBASE_CONFIG: {e}")
+        # For development, you might want to use a local file as fallback
+        cred = credentials.Certificate('./firestore_db.json')
+else:
+    # Fallback to local credentials file for development
+    cred = credentials.Certificate('./firestore_db.json')
+
 firebase_admin.initialize_app(cred)
 
 db = firestore.client()
