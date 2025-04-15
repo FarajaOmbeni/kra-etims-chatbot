@@ -65,8 +65,6 @@ msgpack==1.1.0
 multidict==6.1.0
 nest-asyncio==1.6.0
 networkx==3.3
-nltk==3.8.2
-numpy==1.26.4
 openai==1.52.0
 packaging==24.2
 parso==0.8.4
